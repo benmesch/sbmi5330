@@ -1,0 +1,9 @@
+name: "BenMescher_sbmi5330"
+output_dir: "."
+navbar:
+  title: "Ben Mescher SBMI5330 Project Site"
+  left:
+    - text: "Home"
+      href: index.html
+    - text: "Exploring ClusterProfiler"
+      href: exploring_clusterprofiler.html
