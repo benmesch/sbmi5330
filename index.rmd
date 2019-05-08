@@ -1,6 +1,14 @@
 ---
 title: "Analysis of CML Microarray Data"
 author: "Ben Mescher"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+  html_notebook:
+    toc: yes
+    toc_collapse: no
+    toc_float: yes
 ---
 
 Final, formal, paper write up is saved here: https://docs.google.com/document/d/1sDRhekkbcrHK-mQRN2IN-v70ZD0oT5KMHAc2F7OPLVA/edit?usp=sharing
