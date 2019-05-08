@@ -118,8 +118,8 @@ fit2 <- eBayes(fit2, 0.01)
 tT <- topTable(fit2, adjust="fdr", sort.by="B", number=250) #sort by the lods or B-statistic
 ```
 
-#### Top 250 Most Differentially Expressed Genes in Pairwise Group Comparisons
-View data for the 250 most statistically relevant genes that were differentially expressed in the following groups:
+#### Top 20 Most Differentially Expressed Genes in Pairwise Group Comparisons
+View data for the 20 most statistically relevant genes that were differentially expressed in the following groups:
 * G0 is control CD34
 * G1 is Chronic Phase
 * G2 is Accelerated Phase
@@ -137,7 +137,7 @@ G3 and G1 (chronic and blast crisis, least and most advanced disease states)
 #subset top table here down to only the columns we care about:
 subset(tT, select=c("P.Value","Gene.symbol"
                     ,"G1...G0","G2...G0","G3...G0","G3...G2","G3...G1"
-                    ,"AveExpr"))
+                    ,"AveExpr"))[1:20,]
 ```
 
 ### Next, look at actual expression values for the top 3:
@@ -197,7 +197,7 @@ plot(exprs(gset)["10012670444",] ~ fl) #plot expressions for xth most differenti
 ```
 
 ### Sidenote: What if we build a different contrast model? What if we do non pairwise contrasts?
-##### When making only 3 pairwise contrasts:G1-G0, G2-G0, G3-G0
+##### When making only 3 pairwise contrasts:G1-G0, G2-G0, G3-G0...
 The top 3 returned into toptable are the same, but then some of the ordering is different. All of the statistics within the groups were unchanged, but it shows that "make contrasts -> top table" pulling in top table is based on all the differences within make contrasts. 
 
 ```{r}
@@ -211,10 +211,10 @@ tT_test <- topTable(fit2_test, adjust="fdr", sort.by="B", number=250) #sort by t
 
 ```{r}
 subset(tT_test, select=c("P.Value","Gene.symbol"
-                         ,"G1...G0","G2...G0","G3...G0","AveExpr"))
+                         ,"G1...G0","G2...G0","G3...G0","AveExpr"))[1:20,]
 ```
 
-Combining all disease-state samples and contrasting with the control, again the top 20 genes are roughly unchanged:
+##### Combining all disease-state samples and contrasting with the control, again the top 20 genes are roughly unchanged:
 
 ```{r}
 fit_test <- lmFit(gset, design)
@@ -226,17 +226,21 @@ tT_test <- topTable(fit2_test, adjust="fdr", sort.by="B", number=250) #sort by t
 
 ```{r}
 subset(tT_test, select=c("P.Value","Gene.symbol"
-                         ,"X.G1...G2...G3..3...G0","G1...G0","AveExpr"))
+                         ,"X.G1...G2...G3..3...G0","G1...G0","AveExpr"))[1:20,]
 ```
 
-Why not follow Radich' lead: compare chronic with accelerated+blast crisis? But also subtract out healthy CD34 profile from the disease samples. 
+##### Why not follow Radich' lead: compare chronic with accelerated+blast crisis? But also subtract out healthy CD34 profile from the disease samples.
+Could be a good future project.
 
+### Ok, now lets try some enrichment...
 
 ```{r}
-#write.table(head(tT[1:10,], file=stdout(), row.names=FALSE, sep="\t"))
+library(clusterProfiler)
+library(org.Hs.eg.db) 
+library(DOSE)
 ```
 
-
+#### Wrangle the data by finding average expression for 3 of the phenotypes:
 
 ```{r}
 #exprs(gset)
@@ -247,7 +251,6 @@ Why not follow Radich' lead: compare chronic with accelerated+blast crisis? But 
 g0.means <- rowMeans(exprs(gset)[,which(sml=="G0")])
 g1.means <- rowMeans(exprs(gset)[,which(sml=="G1")])
 g3.means <- rowMeans(exprs(gset)[,which(sml=="G3")])
-
 ```
 
 ```{r}
@@ -295,24 +298,12 @@ test <- test[!is.na(test)]
 #good source: https://github.com/GuangchuangYu/DOSE/wiki/how-to-prepare-your-own-geneList
 ```
 
-
-### Ok, now lets try some enrichment...
-
-```{r}
-library(clusterProfiler)
-library(org.Hs.eg.db) 
-library(DOSE)
-```
-
+Distribution of fold change, chronic phase vs healthy control
 ```{r}
 plot(test)
 ```
 
-
-
-
-
-
+#### GO Enrichment analysis, Molecular function (level 2), chronic phase vs healthy control
 ```{r}
 gene <- names(test)[abs(test) > 2]
 ggo <- groupGO(gene     = gene,
@@ -329,7 +320,7 @@ ggo@result
 barplot(ggo,showCategory=8)
 ```
 
-
+#### GO Enrichment analysis, Molecular function (level 3), chronic phase vs healthy control
 ```{r}
 gene <- names(test)[abs(test) > 2]
 ggo <- groupGO(gene     = gene,
@@ -342,12 +333,11 @@ ggo@result = ggo@result[order(ggo@result[,"Count"],decreasing=TRUE),]
 ggo@result
 ```
 
-
 ```{r}
 barplot(ggo,showCategory=12)
 ```
 
-
+#### GO Enrichment analysis, Biologic Process (level 3), chronic phase vs healthy control
 ```{r}
 gene <- names(test)[abs(test) > 2]
 ggo <- groupGO(gene     = gene,
@@ -361,14 +351,14 @@ ggo@result = ggo@result[order(ggo@result[,"Count"],decreasing=TRUE),]
 ggo@result
 ```
 
-
 ```{r}
 barplot(ggo,showCategory=12)
 ```
 
 
-Further information about enirchment scores:
-https://yulab-smu.github.io/clusterProfiler-book/chapter2.html#gene-set-enrichment-analysis
+#### KEGG Enrichment analysis, chronic phase vs healthy control
+* Default p value cutoff (5%)
+* Further information about enirchment scores: https://yulab-smu.github.io/clusterProfiler-book/chapter2.html#gene-set-enrichment-analysis
 
 ```{r}
 #KEGG Gene Set Enrichment Analysis
@@ -383,6 +373,11 @@ kk2@result
 ```
 
 ```{r}
+plot(kk2@result[,"setSize"])
+```
+
+#### KEGG Over Representation analysis, chronic phase vs healthy control
+```{r}
 #KEGG over representation Analysis
 kk3 <- enrichKEGG(gene    = names(test),
                organism     = 'hsa',
@@ -393,15 +388,11 @@ kk3@result[,c("Description","GeneRatio","p.adjust","Count")]
 
 
 ```{r}
-plot(kk2@result[,"setSize"])
-```
-
-
-
-```{r}
 library(GSEABase)
 library(tidyr)
 ```
+
+#### Wikipathways enrichment analysis, Chronic phase vs. healthy control
 
 ```{r}
 gene <- names(test)[abs(test) > 2]
@@ -435,6 +426,7 @@ gset@featureData@data[which(gset@featureData@data[,"Gene.ID"]==100128545),c("ID"
 ```
 
 
+#### The following is the default plots, as pulled by Geo2R scripts...
 ```{r}
 
 ################################################################
@@ -608,3 +600,4 @@ NExt, are the "top 250" genes identified by the GEO2R default comparison... how 
 *This will lead naturally into a categorization of the genes in the 3 main pathways of interest. May also want to see highly expressed genes vs. normal patient levels (which should... highlight more genes that are members of the 3 pathways, id think)
 
 
+http://nickstrayer.me/RMarkdown_Sites_tutorial/
