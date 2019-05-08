@@ -2,6 +2,8 @@
 title: "Exploring ClusterProfiler"
 author: "Ben Mescher"
 ---
+author: "Ben Mescher"
+
 Final, formal, paper write up is saved here: https://docs.google.com/document/d/1sDRhekkbcrHK-mQRN2IN-v70ZD0oT5KMHAc2F7OPLVA/edit?usp=sharing
 
 This notebook contains miscellaneous explorations looking at the example GEO dataset used by Clusterprofiler (the data is actually from a different biocondoctor package: breastCancerMAINZ).
@@ -30,22 +32,22 @@ data(mainz)
 ```{r}
 #...this is how i THOUGHT a geometric mean should be calculated. but its totally not what the example code for creating sample dataset for DOSE package did!
 
-#grade.groups <- mainz@phenoData@data[,"grade"] #simpler way: pData(mainz)$grade
-#grade.groups
-#length(grade.groups)
+grade.groups <- mainz@phenoData@data[,"grade"] #simpler way: pData(mainz)$grade
+grade.groups
+length(grade.groups)
 
-#test.exprs <- mainz@assayData[["exprs"]][,grade.groups == 1]# | grade.groups == 3)]
-#head(test.exprs)[,1:5]
-#denom <- (1/length(which(grade.groups == 1)))[1]
-#x <- as.matrix(as.matrix(apply(test.exprs,1,prod))^denom)
-#x[1:5]
+test.exprs <- mainz@assayData[["exprs"]][,grade.groups == 1]# | grade.groups == 3)]
+head(test.exprs)[,1:5]
+denom <- (1/length(which(grade.groups == 1)))[1]
+x <- as.matrix(as.matrix(apply(test.exprs,1,prod))^denom)
+x[1:5]
 
-#test.exprs2 <- mainz@assayData[["exprs"]][,grade.groups == 3]# | grade.groups == 3)]
-#head(test.exprs2)[,1:5]
-#denom2 <- (1/length(which(grade.groups == 3)))[1]
-#y <- as.matrix(as.matrix(apply(test.exprs2,1,prod))^denom2)
-#y[1:5]
-#z <- as.matrix(log2(y / x))
+test.exprs2 <- mainz@assayData[["exprs"]][,grade.groups == 3]# | grade.groups == 3)]
+head(test.exprs2)[,1:5]
+denom2 <- (1/length(which(grade.groups == 3)))[1]
+y <- as.matrix(as.matrix(apply(test.exprs2,1,prod))^denom2)
+y[1:5]
+z <- as.matrix(log2(y / x))
 
 
 #test.exprs["204475_at",]
@@ -97,6 +99,11 @@ plot(mainz@assayData[["exprs"]]["1007_s_at",] ~ grade.groups) #first row in expr
 plot((log2(y / x)))
 ```
 
+```{r}
+library(DOSE)
+data(geneList) #loads the pre-saved named vector "geneList", which is ordered by value. 
+```
+
 
 ## So, I was way off above! (trying to figure out how the test dataset was calculated)
 
@@ -119,11 +126,11 @@ mainz@featureData@data[which(data.frame(mainz@featureData@data)[,"Gene.ID"]=="83
 
 ```{r}
 #this is the internal ID of the Radich data for MMP1. Useless, but at first i was confused and thought the internal IDs in the mainz somehow was connected to some GO label that I would have to look up in Radich dataset
-gset@featureData@data[data.frame(gset@featureData@data)[,"Gene.ID"]=="4312",]
+###gset@featureData@data[data.frame(gset@featureData@data)[,"Gene.ID"]=="4312",]
 ```
 
 ```{r}
-gset@featureData@data[data.frame(gset@featureData@data)[,"Gene.ID"]=="4312",]
+###gset@featureData@data[data.frame(gset@featureData@data)[,"Gene.ID"]=="4312",]
 ```
 
 
@@ -133,8 +140,6 @@ Looking at the actual test dataset "geneList", it appears to be distributed star
 https://github.com/GuangchuangYu/DOSE/wiki/how-to-prepare-your-own-geneList
 
 ```{r}
-library(DOSE)
-data(geneList) #loads the pre-saved named vector "geneList", which is ordered by value. 
 #"In the following example, we selected fold change above 1 as the differential genes and analyzing their disease association."
 gene <- names(geneList)[abs(geneList) > 1.5]
 head(geneList)
@@ -150,9 +155,9 @@ plot(geneList)
 * https://github.com/GuangchuangYu/DOSE/blob/master/inst/extdata/preparing.geneList.R
 
 ```{r}
-clmainz=pData(mainz)$grade
+clmainz=mainz@phenoData$grade
 
-dd <- exprs(mainz)
+dd <- mainz@assayData[["exprs"]]
 g1 <- dd[,clmainz == 1]
 g3 <- dd[,clmainz == 3]
 #interesting how they calculate the geometric mean as log2(e^mean of every row / e^mean of every row)...
@@ -277,7 +282,7 @@ head(ewp2)
 
 ```{r}
 barplot(ggo, drop=TRUE, showCategory=12)
-gseaplot(mkk2, geneSetID = "hsa04145")
+#gseaplot(mkk2, geneSetID = "hsa04145")
 ```
 
 

@@ -9,6 +9,7 @@
 <meta name="generator" content="pandoc" />
 
 
+<meta name="author" content="Ben Mescher" />
 
 
 <title>Exploring ClusterProfiler</title>
@@ -302,11 +303,572 @@ $(document).ready(function () {
 
 
 <h1 class="title toc-ignore">Exploring ClusterProfiler</h1>
+<h4 class="author">Ben Mescher</h4>
 
 </div>
 
 
-<p>Hmm..</p>
+<p>author: “Ben Mescher”</p>
+<p>Final, formal, paper write up is saved here: <a href="https://docs.google.com/document/d/1sDRhekkbcrHK-mQRN2IN-v70ZD0oT5KMHAc2F7OPLVA/edit?usp=sharing" class="uri">https://docs.google.com/document/d/1sDRhekkbcrHK-mQRN2IN-v70ZD0oT5KMHAc2F7OPLVA/edit?usp=sharing</a></p>
+<p>This notebook contains miscellaneous explorations looking at the example GEO dataset used by Clusterprofiler (the data is actually from a different biocondoctor package: breastCancerMAINZ).</p>
+<p>CluterProfiler has a great overview of this ‘gene set enrichment analysis’, labeling with GO or KEGG and identyifying predominant biological themes.</p>
+<p>Manually choosing interesting clusters, and then perform “enrichment analysis” (annotate with function terms) is cumbersome. CluterProfiler compares and visualizes functional profiles among gene clusters.</p>
+<p><a href="http://bioconductor.org/packages/release/bioc/vignettes/clusterProfiler/inst/doc/clusterProfiler.html#supported-ontologiespathways" class="uri">http://bioconductor.org/packages/release/bioc/vignettes/clusterProfiler/inst/doc/clusterProfiler.html#supported-ontologiespathways</a></p>
+<p>Finally, see if can use a bioconductor package, such as clusterProfiler, to group the data into category by GO Biological process. IDK how I can split into “pathways” like “p53 related”,etc. though. ClusterProfiler has nice visualizations, would be nice not to have to code those myself.</p>
+<div id="first-run-through-examples-with-the-provided-dataset.-starting-with-trying-to-figure-out-how-it-was-calculated" class="section level2">
+<h2>First, run through examples with the provided dataset. Starting with trying to figure out how it was calculated:</h2>
+<div id="from-the-documentation-for-dose" class="section level4">
+<h4>From the documentation for DOSE…</h4>
+<ul>
+<li>We computed the ratios of geometric means of grade III samples versus geometric means of grade I samples. Logarithm of these ratios (base 2) were stored in geneList dataset.</li>
+<li>that contained 200 samples, including 29 samples in grade I, 136 samples in grade II and 35 samples in grade III.</li>
+</ul>
+<pre class="r"><code>library(breastCancerMAINZ)
+data(mainz)</code></pre>
+<pre class="r"><code>#...this is how i THOUGHT a geometric mean should be calculated. but its totally not what the example code for creating sample dataset for DOSE package did!
+
+grade.groups &lt;- mainz@phenoData@data[,&quot;grade&quot;] #simpler way: pData(mainz)$grade
+grade.groups</code></pre>
+<pre><code>##   [1] 2 3 3 2 2 2 2 3 2 1 2 2 2 2 2 3 2 2 2 2 1 2 2 2 2 3 2 3 1 1 2 2 2 3 2
+##  [36] 2 2 3 1 2 3 2 2 2 2 3 2 2 1 2 2 2 2 2 3 2 3 2 2 2 2 2 3 2 2 2 2 3 2 2
+##  [71] 1 2 1 2 2 3 2 2 2 2 2 3 1 2 3 1 1 2 3 2 1 3 3 1 2 2 2 2 3 2 2 3 2 2 2
+## [106] 2 1 2 2 2 3 3 2 2 2 2 2 2 2 2 2 3 3 2 3 2 2 2 1 2 1 2 1 1 2 2 2 2 3 2
+## [141] 2 2 2 2 1 2 3 2 1 2 1 2 3 2 3 2 1 2 2 2 2 1 3 2 2 2 2 1 1 2 2 2 2 1 1
+## [176] 2 2 2 2 2 3 2 1 2 2 2 2 2 2 2 2 1 3 2 2 2 3 2 2 2</code></pre>
+<pre class="r"><code>length(grade.groups)</code></pre>
+<pre><code>## [1] 200</code></pre>
+<pre class="r"><code>test.exprs &lt;- mainz@assayData[[&quot;exprs&quot;]][,grade.groups == 1]# | grade.groups == 3)]
+head(test.exprs)[,1:5]</code></pre>
+<pre><code>##           MAINZ_BC6011 MAINZ_BC6024 MAINZ_BC6032 MAINZ_BC6033 MAINZ_BC6044
+## 1007_s_at    11.725876    11.162496    11.970502    11.166585    11.595021
+## 1053_at       8.151481     8.494755     8.522063     8.636343     8.471718
+## 117_at        4.240336     6.952299     7.698116     7.432285     7.501584
+## 121_at        9.300117     9.448791     9.817451     9.376891     9.601830
+## 1255_g_at     5.008374     4.767867     2.632580     3.575176     4.565966
+## 1294_at       9.568747     8.848641     9.930047     8.600699     8.999343</code></pre>
+<pre class="r"><code>denom &lt;- (1/length(which(grade.groups == 1)))[1]
+x &lt;- as.matrix(as.matrix(apply(test.exprs,1,prod))^denom)
+x[1:5]</code></pre>
+<pre><code>## [1] 11.866206  8.355991  7.318369  9.762078  4.924242</code></pre>
+<pre class="r"><code>test.exprs2 &lt;- mainz@assayData[[&quot;exprs&quot;]][,grade.groups == 3]# | grade.groups == 3)]
+head(test.exprs2)[,1:5]</code></pre>
+<pre><code>##           MAINZ_BC6002 MAINZ_BC6003 MAINZ_BC6008 MAINZ_BC6017 MAINZ_BC6029
+## 1007_s_at    12.860578    12.047634    11.565278    11.692314    11.620683
+## 1053_at       8.656013     8.592693     8.904414     8.679955     9.448961
+## 117_at        7.702192     7.479278     7.499551     8.483382     7.203623
+## 121_at        9.586913     9.297300     9.061995     8.722111    10.165988
+## 1255_g_at     5.610451     4.588868     4.100552     2.907951     5.931134
+## 1294_at       8.399767     8.884104     8.493093     8.557537     9.068023</code></pre>
+<pre class="r"><code>denom2 &lt;- (1/length(which(grade.groups == 3)))[1]
+y &lt;- as.matrix(as.matrix(apply(test.exprs2,1,prod))^denom2)
+y[1:5]</code></pre>
+<pre><code>## [1] 11.856486  9.106470  7.771627  9.716578  4.378273</code></pre>
+<pre class="r"><code>z &lt;- as.matrix(log2(y / x))
+
+
+#test.exprs[&quot;204475_at&quot;,]
+#test.exprs2[&quot;204475_at&quot;,]</code></pre>
+<pre class="r"><code>x[&quot;204475_at&quot;,1]</code></pre>
+<pre><code>## 204475_at 
+##  4.974261</code></pre>
+<pre class="r"><code>y[&quot;204475_at&quot;,1]</code></pre>
+<pre><code>## 204475_at 
+##  8.301158</code></pre>
+<pre class="r"><code>#what is gene 4312? 204475_at
+#value in &quot;genelist&quot; example data...4.572613
+
+y[&quot;204475_at&quot;,1] / x[&quot;204475_at&quot;,1]</code></pre>
+<pre><code>## 204475_at 
+##  1.668822</code></pre>
+<pre class="r"><code>log2(4.97)</code></pre>
+<pre><code>## [1] 2.313246</code></pre>
+<pre class="r"><code>log2(8.3)</code></pre>
+<pre><code>## [1] 3.053111</code></pre>
+<pre class="r"><code>#geneList #2nd gene was 8318, with a ratio of 4.514
+#id is 204126_s_at
+x[&quot;204126_s_at&quot;,1]</code></pre>
+<pre><code>## 204126_s_at 
+##    3.988809</code></pre>
+<pre class="r"><code>y[&quot;204126_s_at&quot;,1]</code></pre>
+<pre><code>## 204126_s_at 
+##    7.100198</code></pre>
+<pre class="r"><code>y[&quot;204126_s_at&quot;,1] / x[&quot;204126_s_at&quot;,1]</code></pre>
+<pre><code>## 204126_s_at 
+##     1.78003</code></pre>
+<pre class="r"><code>log2(1.78)</code></pre>
+<pre><code>## [1] 0.8318772</code></pre>
+<pre class="r"><code>#still not able to really recreate the sample datasets values? </code></pre>
+<pre class="r"><code>log2(y/x)[&quot;204126_s_at&quot;,]</code></pre>
+<pre><code>## 204126_s_at 
+##   0.8319015</code></pre>
+<pre class="r"><code>#as.matrix(sort(as.matrix(log2(y/x)),decreasing=TRUE ))</code></pre>
+<pre class="r"><code>#head(log2(y / x))
+plot(mainz@assayData[[&quot;exprs&quot;]][&quot;204475_at&quot;,] ~ grade.groups) #first gene in genelist (stg 3 higher)</code></pre>
+<p><img src="exploring_clusterprofiler_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<pre class="r"><code>plot(mainz@assayData[[&quot;exprs&quot;]][&quot;219197_s_at&quot;,] ~ grade.groups) #one of the last genes in geneLIst (stg 1 higher)</code></pre>
+<p><img src="exploring_clusterprofiler_files/figure-html/unnamed-chunk-6-2.png" width="672" /></p>
+<pre class="r"><code>plot(mainz@assayData[[&quot;exprs&quot;]][&quot;1007_s_at&quot;,] ~ grade.groups) #first row in expression source data</code></pre>
+<p><img src="exploring_clusterprofiler_files/figure-html/unnamed-chunk-6-3.png" width="672" /></p>
+<pre class="r"><code>#mainz@assayData[[&quot;exprs&quot;]][,grade.groups == 1][&quot;204475_at&quot;,]</code></pre>
+<pre class="r"><code>(y[1:10])</code></pre>
+<pre><code>##  [1] 11.856486  9.106470  7.771627  9.716578  4.378273  8.774180  7.440109
+##  [8]  5.662400 10.227855  5.364836</code></pre>
+<pre class="r"><code>(x[1:10])</code></pre>
+<pre><code>##  [1] 11.866206  8.355991  7.318369  9.762078  4.924242  9.295710  7.329188
+##  [8]  5.701419  8.955485  6.104223</code></pre>
+<pre class="r"><code>plot((log2(y / x)))</code></pre>
+<p><img src="exploring_clusterprofiler_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<pre class="r"><code>library(DOSE)</code></pre>
+<pre><code>## </code></pre>
+<pre><code>## DOSE v3.8.2  For help: https://guangchuangyu.github.io/DOSE
+## 
+## If you use DOSE in published research, please cite:
+## Guangchuang Yu, Li-Gen Wang, Guang-Rong Yan, Qing-Yu He. DOSE: an R/Bioconductor package for Disease Ontology Semantic and Enrichment analysis. Bioinformatics 2015, 31(4):608-609</code></pre>
+<pre class="r"><code>data(geneList) #loads the pre-saved named vector &quot;geneList&quot;, which is ordered by value. </code></pre>
+</div>
+</div>
+<div id="so-i-was-way-off-above-trying-to-figure-out-how-the-test-dataset-was-calculated" class="section level2">
+<h2>So, I was way off above! (trying to figure out how the test dataset was calculated)</h2>
+<pre class="r"><code>as.matrix(geneList[1:5]) #when you use the subscript slice... doesnt display with the names, unless you use &quot;as.matrix&quot;!!!</code></pre>
+<pre><code>##           [,1]
+## 4312  4.572613
+## 8318  4.514594
+## 10874 4.418218
+## 55143 4.144075
+## 55388 3.876258</code></pre>
+<pre class="r"><code>as.matrix(geneList[12485:12495])</code></pre>
+<pre><code>##            [,1]
+## 11122 -3.122271
+## 55351 -3.240869
+## 9     -3.250120
+## 4239  -3.261099
+## 5241  -3.297730
+## 10551 -3.330760
+## 10974 -3.416798
+## 79838 -3.457221
+## 79901 -3.603467
+## 57758 -3.945467
+## 4969  -4.302655</code></pre>
+<div id="a-challenge-is-to-always-use-the-internal-ids-not-the-entrez-id.-even-came-up-here-when-looking-at-the-toy-dataset-for-mainz" class="section level4">
+<h4>A challenge is to always use the internal IDs, not the entrez ID. Even came up here, when looking at the toy dataset for Mainz!</h4>
+</div>
+<div id="after-locaitng-a-gene-to-debug-and-compare-results-had-to-use-lots-of-plots-to-see-distribution-of-values-was-this-dataset-already-normalized-etc." class="section level4">
+<h4>after locaitng a gene to debug and compare results… had to use lots of plots to see distribution of values (was this dataset already normalized? etc.)</h4>
+<pre class="r"><code># FINALLY, mapped back to internal id: 204475_at from entrez id for MMP1
+mainz@featureData@data[which(data.frame(mainz@featureData@data)[,&quot;Gene.ID&quot;]==&quot;4312&quot;),]</code></pre>
+<pre><code>##               probe                                           Gene.title
+## 204475_at 204475_at matrix metallopeptidase 1 (interstitial collagenase)
+##           Gene.symbol Gene.ID EntrezGene.ID UniGene.title UniGene.symbol
+## 204475_at        MMP1    4312          4312          &lt;NA&gt;           &lt;NA&gt;
+##           UniGene.ID
+## 204475_at       &lt;NA&gt;
+##                                                                                               Nucleotide.Title
+## 204475_at Homo sapiens matrix metallopeptidase 1 (interstitial collagenase) (MMP1), transcript variant 1, mRNA
+##                  GI GenBank.Accession Platform_CLONEID Platform_ORF
+## 204475_at 225543092         NM_002421               NA           NA
+##           Platform_SPOTID Chromosome.location
+## 204475_at            &lt;NA&gt;             11q22.3
+##                                                   Chromosome.annotation
+## 204475_at Chromosome 11, NC_000011.9 (102660651..102668894, complement)
+##                                                                                           GO.Function
+## 204475_at calcium ion binding///metalloendopeptidase activity///peptidase activity///zinc ion binding
+##                                                                                                          GO.Process
+## 204475_at collagen catabolic process///interspecies interaction between organisms///metabolic process///proteolysis
+##                                                        GO.Component
+## 204475_at extracellular region///proteinaceous extracellular matrix
+##                                               GO.Function.1
+## 204475_at GO:0005509///GO:0004222///GO:0008233///GO:0008270
+##                                                GO.Process.1
+## 204475_at GO:0030574///GO:0044419///GO:0008152///GO:0006508
+##                    GO.Component.1
+## 204475_at GO:0005576///GO:0005578</code></pre>
+<pre class="r"><code>mainz@featureData@data[which(data.frame(mainz@featureData@data)[,&quot;Gene.ID&quot;]==&quot;57758&quot;),]</code></pre>
+<pre><code>##                   probe                             Gene.title Gene.symbol
+## 219197_s_at 219197_s_at signal peptide, CUB domain, EGF-like 2      SCUBE2
+##             Gene.ID EntrezGene.ID UniGene.title UniGene.symbol UniGene.ID
+## 219197_s_at   57758         57758          &lt;NA&gt;           &lt;NA&gt;       &lt;NA&gt;
+##                                                                             Nucleotide.Title
+## 219197_s_at te95c06.x1 NCI_CGAP_Pr28 Homo sapiens cDNA clone IMAGE:2094442 3-, mRNA sequence
+##                  GI GenBank.Accession Platform_CLONEID Platform_ORF
+## 219197_s_at 4270174          AI424243               NA           NA
+##             Platform_SPOTID Chromosome.location
+## 219197_s_at            &lt;NA&gt;             11p15.3
+##                                                 Chromosome.annotation
+## 219197_s_at Chromosome 11, NC_000011.9 (9041935..9113155, complement)
+##                     GO.Function GO.Process         GO.Component
+## 219197_s_at calcium ion binding       &lt;NA&gt; extracellular region
+##             GO.Function.1 GO.Process.1 GO.Component.1
+## 219197_s_at    GO:0005509         &lt;NA&gt;     GO:0005576</code></pre>
+<pre class="r"><code>mainz@featureData@data[which(data.frame(mainz@featureData@data)[,&quot;Gene.ID&quot;]==&quot;8318&quot;),]</code></pre>
+<pre><code>##                   probe                                     Gene.title
+## 204126_s_at 204126_s_at cell division cycle 45 homolog (S. cerevisiae)
+##             Gene.symbol Gene.ID EntrezGene.ID UniGene.title UniGene.symbol
+## 204126_s_at       CDC45    8318          8318          &lt;NA&gt;           &lt;NA&gt;
+##             UniGene.ID
+## 204126_s_at       &lt;NA&gt;
+##                                                                                            Nucleotide.Title
+## 204126_s_at Homo sapiens cell division cycle 45 homolog (S. cerevisiae) (CDC45), transcript variant 2, mRNA
+##                   GI GenBank.Accession Platform_CLONEID Platform_ORF
+## 204126_s_at 34335230         NM_003504               NA           NA
+##             Platform_SPOTID Chromosome.location
+## 204126_s_at            &lt;NA&gt;            22q11.21
+##                                        Chromosome.annotation
+## 204126_s_at Chromosome 22, NC_000022.10 (19467416..19508135)
+##                 GO.Function
+## 204126_s_at protein binding
+##                                                                                                       GO.Process
+## 204126_s_at DNA replication///DNA replication checkpoint///DNA-dependent DNA replication initiation///cell cycle
+##                                               GO.Component GO.Function.1
+## 204126_s_at centrosome///cytoplasm///nucleoplasm///nucleus    GO:0005515
+##                                                  GO.Process.1
+## 204126_s_at GO:0006260///GO:0000076///GO:0006270///GO:0007049
+##                                                GO.Component.1
+## 204126_s_at GO:0005813///GO:0005737///GO:0005654///GO:0005634</code></pre>
+<pre class="r"><code>#this is the internal ID of the Radich data for MMP1. Useless, but at first i was confused and thought the internal IDs in the mainz somehow was connected to some GO label that I would have to look up in Radich dataset
+###gset@featureData@data[data.frame(gset@featureData@data)[,&quot;Gene.ID&quot;]==&quot;4312&quot;,]</code></pre>
+<pre class="r"><code>###gset@featureData@data[data.frame(gset@featureData@data)[,&quot;Gene.ID&quot;]==&quot;4312&quot;,]</code></pre>
+<p>Looking at the actual test dataset “geneList”, it appears to be distributed starting at +4.5</p>
+<p><a href="https://github.com/GuangchuangYu/DOSE/wiki/how-to-prepare-your-own-geneList" class="uri">https://github.com/GuangchuangYu/DOSE/wiki/how-to-prepare-your-own-geneList</a></p>
+<pre class="r"><code>#&quot;In the following example, we selected fold change above 1 as the differential genes and analyzing their disease association.&quot;
+gene &lt;- names(geneList)[abs(geneList) &gt; 1.5]
+head(geneList)</code></pre>
+<pre><code>##     4312     8318    10874    55143    55388      991 
+## 4.572613 4.514594 4.418218 4.144075 3.876258 3.677857</code></pre>
+<pre class="r"><code>plot(geneList)</code></pre>
+<p><img src="exploring_clusterprofiler_files/figure-html/unnamed-chunk-14-1.png" width="672" /> #### later: found source code used to actually create the geneList!!! * Formula they used for “geometic means” is not what I expected * Also, most of the work here is converting from internal to Entrez IDs (though nowadays, you could use the bitr function for that! maybe?) * raw data creates 22k elements. but only 12k have a labeled entrez ID and get saved to the final dataset! * <a href="https://github.com/GuangchuangYu/DOSE/blob/master/inst/extdata/preparing.geneList.R" class="uri">https://github.com/GuangchuangYu/DOSE/blob/master/inst/extdata/preparing.geneList.R</a></p>
+<pre class="r"><code>clmainz=mainz@phenoData$grade
+
+dd &lt;- mainz@assayData[[&quot;exprs&quot;]]
+g1 &lt;- dd[,clmainz == 1]
+g3 &lt;- dd[,clmainz == 3]
+#interesting how they calculate the geometric mean as log2(e^mean of every row / e^mean of every row)...
+#rowMeans(g3)[&quot;204475_at&quot;]
+#rowMeans(g1)[&quot;204475_at&quot;]
+#^^result is 8.6 and 5.49, when you do &quot;exp&quot; of both, the log2 is ~4+ !!
+geneListExample &lt;- exp(rowMeans(g3))/exp(rowMeans(g1))
+geneListExample &lt;- sort(geneListExample, decreasing=TRUE)
+geneListExample &lt;- log(geneListExample, base=2)
+head(geneListExample)</code></pre>
+<pre><code>##   204475_at 204126_s_at   206023_at 221520_s_at 202917_s_at 220651_s_at 
+##    4.572613    4.514594    4.418218    4.144075    4.060795    3.876258</code></pre>
+<pre class="r"><code>#^creates numeric list (named), but the names are all the internal IDs (204475_at, not Entrez ID integers)
+
+#the rest of the code is to replace internal IDs like &quot;204475_at&quot; with the entrez integer IDs (from hgu133a file)
+#this is from github, years ago. clusterProfiler uses a somewhat newer method to do this: bitr()
+#require(&quot;hgu133a.db&quot;)
+#require(siggenes)
+#eg &lt;- mget(names(geneList), hgu133aENTREZID, ifnotfound=NA) #supposed to retreive entrez ids
+#gg &lt;- data.frame(probe=names(geneList), val = geneList)
+#eg.df &lt;- data.frame(probe=names(eg), eg=unlist(eg))
+#
+#xx &lt;- merge(gg, eg.df, by.x=&quot;probe&quot;, by.y=&quot;probe&quot;)
+#xx &lt;- xx[,-1]
+#xx &lt;- unique(xx)
+#xx &lt;- xx[!is.na(xx[,2]),]
+#
+#require(plyr)
+#yy &lt;- ddply(xx, .(eg), function(x) data.frame(val=mean(x$val)))
+#
+#geneList &lt;- yy$val
+#names(geneList) &lt;- yy$eg
+#geneList &lt;- sort(geneList, decreasing=TRUE)
+#
+#save(geneList, file=&quot;geneList.rda&quot;)</code></pre>
+<pre class="r"><code>#Example use of DOSE() enrichment analysis
+gene &lt;- names(geneList)[abs(geneList) &gt; 1.5]
+x &lt;- enrichDO(gene          = gene,
+              ont           = &quot;DO&quot;,
+              pvalueCutoff  = 0.05,
+              pAdjustMethod = &quot;BH&quot;,
+              universe      = names(geneList),
+              minGSSize     = 5,
+              maxGSSize     = 500,
+              qvalueCutoff  = 0.05,
+              readable      = TRUE)</code></pre>
+<pre><code>## Loading required package: org.Hs.eg.db</code></pre>
+<pre><code>## Loading required package: AnnotationDbi</code></pre>
+<pre><code>## Loading required package: stats4</code></pre>
+<pre><code>## Loading required package: BiocGenerics</code></pre>
+<pre><code>## Loading required package: parallel</code></pre>
+<pre><code>## 
+## Attaching package: &#39;BiocGenerics&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:parallel&#39;:
+## 
+##     clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+##     clusterExport, clusterMap, parApply, parCapply, parLapply,
+##     parLapplyLB, parRapply, parSapply, parSapplyLB</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     IQR, mad, sd, var, xtabs</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     anyDuplicated, append, as.data.frame, basename, cbind,
+##     colMeans, colnames, colSums, dirname, do.call, duplicated,
+##     eval, evalq, Filter, Find, get, grep, grepl, intersect,
+##     is.unsorted, lapply, lengths, Map, mapply, match, mget, order,
+##     paste, pmax, pmax.int, pmin, pmin.int, Position, rank, rbind,
+##     Reduce, rowMeans, rownames, rowSums, sapply, setdiff, sort,
+##     table, tapply, union, unique, unsplit, which, which.max,
+##     which.min</code></pre>
+<pre><code>## Loading required package: Biobase</code></pre>
+<pre><code>## Welcome to Bioconductor
+## 
+##     Vignettes contain introductory material; view with
+##     &#39;browseVignettes()&#39;. To cite Bioconductor, see
+##     &#39;citation(&quot;Biobase&quot;)&#39;, and for packages &#39;citation(&quot;pkgname&quot;)&#39;.</code></pre>
+<pre><code>## Loading required package: IRanges</code></pre>
+<pre><code>## Loading required package: S4Vectors</code></pre>
+<pre><code>## 
+## Attaching package: &#39;S4Vectors&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:base&#39;:
+## 
+##     expand.grid</code></pre>
+<pre><code>## </code></pre>
+<pre class="r"><code>head(x)</code></pre>
+<pre><code>##                    ID                    Description GeneRatio  BgRatio
+## DOID:170     DOID:170         endocrine gland cancer    48/331 472/6268
+## DOID:10283 DOID:10283                prostate cancer    40/331 394/6268
+## DOID:3459   DOID:3459               breast carcinoma    37/331 357/6268
+## DOID:3856   DOID:3856 male reproductive organ cancer    40/331 404/6268
+## DOID:824     DOID:824                  periodontitis    16/331 109/6268
+## DOID:3905   DOID:3905                 lung carcinoma    43/331 465/6268
+##                  pvalue    p.adjust      qvalue
+## DOID:170   5.662129e-06 0.004784499 0.003826407
+## DOID:10283 3.859157e-05 0.013921739 0.011133923
+## DOID:3459  4.942629e-05 0.013921739 0.011133923
+## DOID:3856  6.821467e-05 0.014410349 0.011524689
+## DOID:824   1.699304e-04 0.018859464 0.015082872
+## DOID:3905  1.749754e-04 0.018859464 0.015082872
+##                                                                                                                                                                                                                                                                                          geneID
+## DOID:170   NMU/TOP2A/CRABP1/RRM2/UBE2C/MSLN/BIRC5/S100P/EZH2/KIF20A/CCNB1/PTTG1/MCM2/CDC25A/PLK1/MMP9/CXCL8/CTSV/NKX2-2/GGH/HMGA1/TFPI2/RAD51/APLP1/CCNE1/PCLAF/MKI67/IKBKB/F3/AKAP12/AGTR1/TGFB3/HTR2B/GSTT1/PLAT/IRS1/DCN/COL4A5/MUC1/CLDN5/IGF1/CEACAM6/SFRP4/PDGFD/BMP4/WISP2/CXCL14/CX3CR1
+## DOID:10283                                                   MMP1/S100A9/S100A8/BCL2A1/CXCL10/BIRC5/S100P/EZH2/MMP12/NUDT1/CCNB1/PLK1/MAGEA3/MMP9/BUB1B/CXCL8/EPHX3/CRISP3/CCL5/MKI67/IKBKB/F3/ALOX15B/GSTT1/IGFBP4/AR/IRS1/MAOA/MUC1/AZGP1/ITGA7/MAK/TFF1/IGF1/SFRP4/VAV3/PDGFD/BMP4/LRP2/AGR2
+## DOID:3459                                                           MMP1/S100A9/S100A8/TOP2A/NEK2/CCNA2/MAD2L1/BIRC5/S100P/AURKA/CCNB1/PTTG1/HPSE/MCM2/PLK1/MMP9/BUB1B/GBP1/CXCL8/ISG15/CCNE1/TNFRSF11A/MKI67/GSTT1/TNFRSF11B/MAOA/MUC1/TFF1/IGF1/CA12/SCGB2A2/ERBB4/FOXA1/SCGB1D2/PIP/PGR/AGR2
+## DOID:3856                                                    MMP1/S100A9/S100A8/BCL2A1/CXCL10/BIRC5/S100P/EZH2/MMP12/NUDT1/CCNB1/PLK1/MAGEA3/MMP9/BUB1B/CXCL8/EPHX3/CRISP3/CCL5/MKI67/IKBKB/F3/ALOX15B/GSTT1/IGFBP4/AR/IRS1/MAOA/MUC1/AZGP1/ITGA7/MAK/TFF1/IGF1/SFRP4/VAV3/PDGFD/BMP4/LRP2/AGR2
+## DOID:824                                                                                                                                                                                        MMP1/S100A8/CAMP/IL1R2/MMP12/IL12RB2/MMP9/LYZ/CXCL8/CTLA4/CCL5/PROM1/AGTR1/GSTT1/PLAT/TNFRSF11B
+## DOID:3905                            MMP1/S100A9/FOXM1/CCNB2/S100A8/TOP2A/S100A7/RRM2/CEP55/UBE2C/SLC7A5/MSLN/BIRC5/S100P/GZMB/AURKB/NUDT1/CCNB1/MCM2/KIF14/FOSL1/MMP9/CXCL8/EIF4EBP1/ECT2/TFPI2/TK1/CCNE1/CCL5/PROM1/MKI67/F3/GJA1/GSTT1/IL6ST/MUC1/TGFBR3/AZGP1/IGF1/DUSP4/HLA-DQA1/ACKR1/GRP
+##            Count
+## DOID:170      48
+## DOID:10283    40
+## DOID:3459     37
+## DOID:3856     40
+## DOID:824      16
+## DOID:3905     43</code></pre>
+</div>
+<div id="the-enrichdo-function-requires-an-entrezgene-id-vector-as-input-mostly-is-the-differential-gene-list-of-gene-expression-profile-studies." class="section level4">
+<h4>“The enrichDO function requires an entrezgene ID vector as input, mostly is the differential gene list of gene expression profile studies.”</h4>
+<p>If user needs to convert other gene ID type to entrezgene ID, we recommend using bitr function provided by clusterProfiler.</p>
+<pre class="r"><code>#example from clusterProfile, for GO enrichment analysis...
+library(clusterProfiler)</code></pre>
+<pre><code>## clusterProfiler v3.10.1  For help: https://guangchuangyu.github.io/software/clusterProfiler
+## 
+## If you use clusterProfiler in published research, please cite:
+## Guangchuang Yu, Li-Gen Wang, Yanyan Han, Qing-Yu He. clusterProfiler: an R package for comparing biological themes among gene clusters. OMICS: A Journal of Integrative Biology. 2012, 16(5):284-287.</code></pre>
+<pre class="r"><code>library(org.Hs.eg.db) #had to install separately</code></pre>
+<pre class="r"><code>gene &lt;- names(geneList)[abs(geneList) &gt; 2]
+ggo &lt;- groupGO(gene     = gene,
+               OrgDb    = org.Hs.eg.db,
+               ont      = &quot;CC&quot;,
+               level    = 3,
+               readable = TRUE)
+head(ggo)</code></pre>
+<pre><code>##                    ID                    Description Count GeneRatio
+## GO:0005886 GO:0005886                plasma membrane    55    55/207
+## GO:0005628 GO:0005628              prospore membrane     0     0/207
+## GO:0005789 GO:0005789 endoplasmic reticulum membrane     8     8/207
+## GO:0019867 GO:0019867                 outer membrane     3     3/207
+## GO:0031090 GO:0031090             organelle membrane    18    18/207
+## GO:0034357 GO:0034357        photosynthetic membrane     0     0/207
+##                                                                                                                                                                                                                                                                                                                                                      geneID
+## GO:0005886 S100A9/MELK/S100A8/MARCO/ASPM/CXCL10/LAMP3/CEP55/UGT8/UBE2C/SLC7A5/CXCL9/FADS2/MSLN/IL1R2/KIF18A/S100P/GZMB/TRAT1/GABRP/AQP9/GPR19/SLC2A6/KIF20A/LAG3/NUDT1/CACNA1D/VSTM4/ITPR1/SYT17/SLC16A4/CORIN/KCNK15/CA12/KCNE4/HLA-DQA1/ADH1B/PDZK1/C7/ACKR1/COL17A1/PSD3/EMCN/SLC44A4/LRP2/NLGN4X/MAPT/ERBB4/CX3CR1/LAMP5/ABCA8/STEAP4/PTPRT/TMC5/CYBRD1
+## GO:0005628                                                                                                                                                                                                                                                                                                                                                 
+## GO:0005789                                                                                                                                                                                                                                                                                               FADS2/CDK1/CHODL/ITPR1/HLA-DQA1/CYP4F8/CYP4B1/FMO5
+## GO:0019867                                                                                                                                                                                                                                                                                                                                  BCL2A1/MAOB/PGR
+## GO:0031090                                                                                                                                                                                                                                   MARCO/BCL2A1/LAMP3/DUSP2/DTL/NUDT1/MAOB/ITPR1/FAM198B/HLA-DQA1/LRP2/CYP4F8/CYP4B1/LAMP5/FMO5/STEAP4/PGR/CYBRD1
+## GO:0034357</code></pre>
+<pre class="r"><code>#KEGG Gene Set Enrichment Analysis
+kk2 &lt;- gseKEGG(geneList     = geneList,
+               organism     = &#39;hsa&#39;,
+               nPerm        = 1000,
+               minGSSize    = 120,
+               pvalueCutoff = 0.05,
+               verbose      = FALSE)
+head(kk2)</code></pre>
+<pre><code>##                ID                 Description setSize enrichmentScore
+## hsa04151 hsa04151  PI3K-Akt signaling pathway     322      -0.3482755
+## hsa04510 hsa04510              Focal adhesion     188      -0.4188582
+## hsa03013 hsa03013               RNA transport     131       0.4116488
+## hsa04218 hsa04218         Cellular senescence     143       0.4153718
+## hsa05152 hsa05152                Tuberculosis     162       0.3745153
+## hsa04062 hsa04062 Chemokine signaling pathway     166       0.3747836
+##                NES      pvalue   p.adjust    qvalues rank
+## hsa04151 -1.495540 0.001329787 0.02164502 0.01405028 1997
+## hsa04510 -1.722725 0.001386963 0.02164502 0.01405028 2183
+## hsa03013  1.753754 0.003154574 0.02164502 0.01405028 3383
+## hsa04218  1.791857 0.003344482 0.02164502 0.01405028 1155
+## hsa05152  1.650594 0.003412969 0.02164502 0.01405028 2823
+## hsa04062  1.642130 0.003508772 0.02164502 0.01405028 1298
+##                            leading_edge
+## hsa04151 tags=23%, list=16%, signal=20%
+## hsa04510 tags=27%, list=17%, signal=23%
+## hsa03013 tags=40%, list=27%, signal=29%
+## hsa04218  tags=17%, list=9%, signal=16%
+## hsa05152 tags=34%, list=23%, signal=27%
+## hsa04062 tags=20%, list=10%, signal=19%
+##                                                                                                                                                                                                                                                                                                                                                                                 core_enrichment
+## hsa04151 2252/7059/92579/5563/5295/6794/1288/7010/3910/3371/3082/1291/4602/3791/1027/90993/3441/3643/1129/2322/1975/7450/596/3685/1942/2149/1280/4804/3675/595/2261/7248/2246/4803/3912/1902/1278/1277/2846/2057/1293/2247/55970/5618/7058/10161/56034/3693/4254/3480/4908/5159/1292/3908/2690/3909/8817/9223/4915/3551/2791/63923/3913/9863/3667/1287/3679/7060/3479/80310/1311/5105/2066/1101
+## hsa04510                                                                                                                         5228/7424/1499/4636/83660/7059/5295/1288/23396/3910/3371/3082/1291/394/3791/7450/596/3685/1280/3675/595/2318/3912/1793/1278/1277/1293/10398/55742/2317/7058/25759/56034/3693/3480/5159/857/1292/3908/3909/63923/3913/1287/3679/7060/3479/10451/80310/1311/1101
+## hsa03013                                                                                         10460/1978/55110/54913/9688/8894/11260/10799/9631/4116/5042/8761/6396/23165/8662/10248/55706/79833/9775/29107/23636/5905/9513/5901/10775/10557/4927/79902/1981/26986/11171/10762/8480/8891/11097/26019/10940/4686/9972/81929/10556/3646/9470/387082/1977/57122/8563/7514/79023/3837/9818/56000
+## hsa04218                                                                                                                                                                                                                                                             2305/4605/9133/890/983/51806/1111/891/993/3576/1978/898/9134/4609/1869/1029/22808/3804/1871/5499/91860/292/1019/11200/1875
+## hsa05152                                                                                                  820/51806/6772/64581/3126/3112/8767/3654/1054/1051/3458/1520/11151/1594/50617/54205/91860/8877/3329/637/3689/7096/2207/3929/4360/5603/929/533/3452/6850/7124/1509/3569/7097/1378/8772/64170/3119/843/2213/8625/3920/2215/3587/5594/3593/9103/3592/6300/9114/10333/3109/3108/1432/3552
+## hsa04062                                                                                                                                                                                                              3627/10563/6373/4283/6362/6355/2921/6364/3576/6352/10663/1230/6772/6347/6351/3055/1237/1236/4067/6354/114/3702/6361/1794/1234/6367/6375/6374/2919/409/4793/2792/6360/5880</code></pre>
+<pre class="r"><code>gene &lt;- names(geneList)[abs(geneList) &lt; 3]
+ncg &lt;- enrichNCG(gene)
+head(ncg)</code></pre>
+<pre><code>##                                        ID          Description GeneRatio
+## soft_tissue_sarcomas soft_tissue_sarcomas soft_tissue_sarcomas   28/1172
+## bladder                           bladder              bladder   61/1172
+## glioma                             glioma               glioma   68/1172
+##                      BgRatio       pvalue    p.adjust      qvalue
+## soft_tissue_sarcomas 28/1571 0.0002517511 0.008056037 0.006360029
+## bladder              67/1571 0.0005108168 0.008173069 0.006452423
+## glioma               76/1571 0.0008511747 0.009079196 0.007167787
+##                                                                                                                                                                                                                                                                                                                                                                  geneID
+## soft_tissue_sarcomas                                                                                                                                                                                                       1029/999/6850/4914/4342/2185/55294/2041/4851/23512/2044/4058/5290/8726/4486/5297/5728/3815/2324/7403/5925/4763/1499/7157/5159/2045/3667/2066
+## bladder                                            9700/2175/9603/1029/8997/688/1026/896/677/6256/55294/8085/4851/3265/1999/3845/8243/10605/8295/4854/5290/2033/4780/23224/23217/2064/23385/55252/10735/4853/387/288/30849/9794/7403/287/463/472/4297/2065/2262/8289/9611/5925/2068/4763/7157/2186/1387/3910/2261/7248/23037/23345/7832/79633/10628/22906/388/4036/3169
+## glioma               4603/4609/1029/3418/8877/1019/7027/4613/1030/1956/1106/2264/3417/6597/4914/55359/896/894/2321/3954/5335/5781/8439/673/9444/4851/8087/2050/8493/3845/3482/667/56999/5290/2033/4233/577/5894/5156/80036/9407/3020/1021/5598/5728/8621/1828/63035/23592/8880/2260/54880/4916/2263/1639/90/546/8289/4763/7157/23152/5295/4602/595/2261/6938/4915/26137
+##                      Count
+## soft_tissue_sarcomas    28
+## bladder                 61
+## glioma                  68</code></pre>
+<pre class="r"><code>mkk2 &lt;- gseMKEGG(geneList = geneList)</code></pre>
+<pre><code>## preparing geneSet collections...</code></pre>
+<pre><code>## GSEA analysis...</code></pre>
+<pre><code>## leading edge analysis...</code></pre>
+<pre><code>## done...</code></pre>
+<pre class="r"><code>head(mkk2)</code></pre>
+<pre><code>##            ID                     Description setSize enrichmentScore
+## M00340 M00340   Proteasome, 20S core particle      13       0.7935026
+## M00337 M00337                Immunoproteasome      15       0.7583644
+## M00354 M00354 Spliceosome, U4/U6.U5 tri-snRNP      29       0.6053503
+##             NES      pvalue   p.adjust    qvalues rank
+## M00340 2.078534 0.002341920 0.04835924 0.03999636 2516
+## M00337 2.035372 0.002375297 0.04835924 0.03999636 2516
+## M00354 1.910803 0.002590674 0.04835924 0.03999636 2737
+##                          leading_edge
+## M00340 tags=92%, list=20%, signal=74%
+## M00337 tags=80%, list=20%, signal=64%
+## M00354 tags=48%, list=22%, signal=38%
+##                                                                     core_enrichment
+## M00340                  5688/5693/5691/5685/5690/5684/5686/5695/5692/5683/5694/5682
+## M00337                  5688/5698/5721/5691/5685/5690/5684/5686/5699/5692/5683/5682
+## M00354 6634/10907/6632/6636/57819/6637/25804/6628/10713/11157/51690/4809/6633/10465</code></pre>
+</div>
+<div id="in-contrast-to-kegg-wikipathways-is-a-continuously-updated-pathway-database-curated-by-a-community-of-researchers-and-pathway-enthusiasts." class="section level4">
+<h4>In contrast to KEGG, WikiPathways is a continuously updated pathway database curated by a community of researchers and pathway enthusiasts.</h4>
+<p>I like WikiPathways because it has “RB pathway” in it.</p>
+<pre class="r"><code>library(GSEABase)</code></pre>
+<pre><code>## Loading required package: annotate</code></pre>
+<pre><code>## Loading required package: XML</code></pre>
+<pre><code>## Loading required package: graph</code></pre>
+<pre><code>## 
+## Attaching package: &#39;graph&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:XML&#39;:
+## 
+##     addNode</code></pre>
+<pre class="r"><code>library(tidyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;tidyr&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:S4Vectors&#39;:
+## 
+##     expand</code></pre>
+<pre class="r"><code>wpgmtfile &lt;- system.file(&quot;extdata&quot;, &quot;wikipathways-20180810-gmt-Homo_sapiens.gmt&quot;, package=&quot;clusterProfiler&quot;)
+wp2gene &lt;- read.gmt(wpgmtfile) #i had to install GSEAbase first ??
+wp2gene &lt;- wp2gene %&gt;% tidyr::separate(ont, c(&quot;name&quot;,&quot;version&quot;,&quot;wpid&quot;,&quot;org&quot;), &quot;%&quot;)
+wpid2gene &lt;- wp2gene %&gt;% dplyr::select(wpid, gene) #TERM2GENE
+wpid2name &lt;- wp2gene %&gt;% dplyr::select(wpid, name) #TERM2NAME
+
+ewp &lt;- enricher(gene, TERM2GENE = wpid2gene, TERM2NAME = wpid2name)
+ewp &lt;- setReadable(ewp, org.Hs.eg.db, keyType = &quot;ENTREZID&quot;)
+head(ewp)</code></pre>
+<pre><code>##            ID                                                Description
+## WP481   WP481                                          Insulin Signaling
+## WP3888 WP3888                             VEGFA-VEGFR2 Signaling Pathway
+## WP2380 WP2380 Brain-Derived Neurotrophic Factor (BDNF) signaling pathway
+## WP3932 WP3932             Focal Adhesion-PI3K-Akt-mTOR-signaling pathway
+## WP3915 WP3915             Angiopoietin Like Protein 8 Regulatory Pathway
+## WP4172 WP4172                                 PI3K-Akt Signaling Pathway
+##        GeneRatio  BgRatio       pvalue     p.adjust       qvalue
+## WP481   155/4946 161/6249 2.628162e-10 9.881890e-08 5.449979e-08
+## WP3888  221/4946 238/6249 3.091354e-09 5.811746e-07 3.205246e-07
+## WP2380  138/4946 144/6249 7.914444e-09 9.195601e-07 5.071482e-07
+## WP3932  281/4946 309/6249 9.782554e-09 9.195601e-07 5.071482e-07
+## WP3915  127/4946 132/6249 1.403494e-08 1.055427e-06 5.820806e-07
+## WP4172  311/4946 345/6249 1.800697e-08 1.128437e-06 6.223462e-07
+##                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    geneID
+## WP481                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              EIF4EBP1/GRB14/MAP4K2/MAP4K1/CBL/SLC2A1/MAPK13/RAC2/PRKCQ/MAP2K1/EHD1/SOCS3/MAP2K2/RPS6KB2/REG1A/MAPK1/SOS1/PRKCA/SOCS1/SH2B2/SGK1/GSK3B/MAPK12/MAPK6/INPP4A/MAP2K3/MAPK14/PFKL/ARF6/TRIB3/EIF4E/MAP3K8/GYG1/RPS6KA4/ELK1/PRKCB/GRB2/RPS6KA3/AKT2/GYS1/INPPL1/RHEB/KIF5B/SRF/PIK3CB/PIK3CG/MAPK4/CAP1/PRKCI/RPS6KA1/PTPN1/MAPK10/PIK3CD/MAP3K10/PTPRF/PTPN11/MAP3K11/MAP3K7/SHC3/MAP2K6/MTOR/HRAS/SGK2/MAPK8/PFKM/RAPGEF1/RPS6KB1/CBLB/RAC1/MAP3K13/SNAP25/GRB10/PIK3R3/MAP3K5/MAP3K14/PIK3R2/PIK3CA/MAP3K2/AKT1/FLOT2/RAF1/RHOQ/RRAD/MAP2K7/MAPK11/MINK1/GSK3A/IRS4/PIK3C3/MAPK7/MAP3K9/PPP1R3A/JUN/PTEN/PIK3C2G/MAP4K5/CRK/SOS2/RPS6KA6/TBC1D4/MAP4K4/GYS2/PRKCH/PDPK1/PIK3R4/KIF3A/CBLC/MAP3K3/MAPK9/GAB1/STXBP3/STXBP2/STX4/MAP2K5/TSC2/SHC1/SLC2A4/FOXO3/MAP3K6/PRKCD/MAP4K3/MYO1C/PIK3C2A/PRKAA1/CYTH3/MAPK3/MAP2K4/FLOT1/IRS2/PRKAA2/ARHGAP33/PIK3R1/EGR1/INSR/PRKCZ/RPS6KA5/MAP3K4/TSC1/VAMP2/RPS6KA2/FOXO1/FOS/SNAP23/SORBS1/STXBP1/MAP3K1/SHC2/XBP1/IGF1R/LIPE/ENPP1/IKBKB/MAP3K12/EHD2/IRS1
+## WP3888                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      PBK/CXCL8/STAT1/CCL2/NDRG1/NCF2/CBL/BIN1/ICAM1/TXN/DKK1/TEAD4/ARRB2/CSK/VEGFA/NCK1/ATF4/MAP2K1/NR4A3/PLAUR/ITCH/FADD/PTGS2/FAF1/PFN1/PTPRJ/SH2D2A/GIPC1/MAP2K2/MAPK1/HDAC9/NFKBIA/ACP1/PRKCA/LIMK1/GSK3B/MAPK12/PLA2G4A/MAP2K3/ELOA/MAPK14/HBEGF/ARF6/EIF4E/PTK2/PAK1/WASF1/SRC/ELK1/NR4A1/PRKCB/GRB2/ERN1/MAPKAPK5/NRP2/SHB/VCL/AMOT/STAM/FGA/HSP90AA1/RELA/PLAU/MAPKAPK2/MAPKAP1/FGG/ETS1/SRF/VAV2/HDAC1/CFL1/FLT1/EPN1/PTK2B/PRKCI/PLCG1/PTPN1/NCL/KCNC3/MYH9/RCAN1/FYN/PAK2/PTPN11/PXN/ATF6/CDC42/MAP2K6/MTOR/MLST8/PLCB3/HRAS/RPS6/PTPN6/NFATC1/EEA1/RAB11A/MAPK8/FAS/RAPGEF1/ADAMTS1/SELE/RPS6KB1/RAC1/MKNK1/CLTC/BMP10/GRB10/EIF2AK3/MAP3K5/PRKD1/PIK3R2/PIK3CA/AKT1/HGS/RAP1B/ATF2/DNAJB9/PRKCE/RAF1/FGB/MAP2K7/ITGB1/RAP1A/IQGAP1/MYL2/ANXA1/PTPN9/HERPUD1/MMP14/NFKB1/YWHAE/TNFRSF10C/RAB5A/STAT3/ROCK1/EZR/RND1/CAMKK2/FRS2/JUN/CAPN2/PRKD2/ROCK2/RHOA/CRK/ITGB3/AFDN/PTPRZ1/CREB1/PDPK1/NOS3/MAPK9/GAB1/TNXB/EPS15/ACACA/FBXW11/SHC1/CTNNA1/FOXO3/ARHGEF15/NOTCH4/FHL2/BCL2L1/PLA2G5/PRKCD/CYP2C8/SMARCA2/SLC8A1/HDAC5/PRKAA1/HSPB1/PPP3CA/MAPK3/MAP2K4/HDAC4/PGF/CTNNB1/EGR3/PRKAA2/PIK3R1/STAT6/FOXO4/RCAN2/KDR/HDAC7/JAG1/EGR1/DOK1/IGFBP7/BCL2/PRKCZ/ITGAV/RPS6KA5/ERG/PRKG1/CTGF/OCLN/CCND1/NR4A2/MEF2C/GPC1/FOXO1/CDH5/ACKR3/MMP10/FLNB/TRPC1/KL/MMRN2/SHC2/MMP2/TXNIP/ITGB5/CAV1/INPP4B/ACACB/MYO6/F3/GJA1
+## WP2380                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   EIF4EBP1/STAT1/YBX1/EIF2S2/NCF2/DOCK3/SPP1/KCNA3/CDK5/NCK1/MAP2K1/CDH2/NCK2/EGR2/MAP2K2/MAPK1/NFKBIA/BCL2L11/RASGRF1/SH2B2/CHUK/SIRPA/GSK3B/MAPK14/CDKL5/RANBP9/NTRK1/EIF4E/ALPL/CASP3/SRC/ELK1/GRB2/RPS6KA3/CDK5R1/RHOG/MEF2A/ADAM17/GABRB3/RELA/EIF2S1/SQSTM1/KSR1/VAV2/MARCKS/CFL1/PTK2B/PLCG1/RPS6KA1/MAPK10/IKBKG/FYN/PTPRF/PTPN11/TIAM1/GRIN1/SHC3/CDC42/MTOR/NSF/HRAS/RPS6/GRIN2B/MAPK8/SYN1/RPS6KB1/RAC1/CRTC1/DOK5/CYFIP1/DLG1/CAMK2A/PIK3R2/MAP3K2/AKT1/JAK2/FRS3/CAMK1/RAF1/RAP1A/TRAF6/SORT1/NFKB1/STAT3/MAPK7/BAD/FRS2/JUN/BMP2/PPP2CA/GRIA3/CAMK4/EEF2/CREB1/PDPK1/NCAM1/MAPK9/RAB3A/KCNN2/KIDINS220/NTRK3/DPYSL2/MAP2K5/TSC2/SHC1/FOXO3/STAT5B/CNR1/PRKCD/GRIA1/PRKAA1/MAPK3/CTNNB1/NFATC4/SH2B1/BDNF/IRS2/PRKAA2/PIK3R1/EGR1/STAT5A/RPS6KA5/NGFR/GRIP1/APC/NGF/MEF2C/FOS/MAP3K1/SHC2/NTF3/NTRK2/ACACB/IKBKB/GRIA2/IRS1/VAV3/MAPT
+## WP3932                                                                                                                                   ITGB7/EIF4EBP1/ANGPT4/IL2RA/IL2RG/DDIT4/IL7R/COL11A2/SLC2A3/FGF8/IBSP/ITGB2/ITGB8/SLC2A1/SPP1/FGF6/EFNA3/PFKFB2/GNGT1/FGF9/EFNA2/PFKFB4/VEGFA/TNR/ELAVL1/TCL1A/ATF4/MAP2K1/FGF22/HIF1A/EGFR/LPAR3/GNG5/MAP2K2/EGF/RPS6KB2/MAPK1/SOS1/COL4A4/ITGA2B/FGF12/FGFR4/NRAS/IL6R/FGF21/GNG4/IL2/GSK3B/IL2RB/HSP90B1/HSP90AB1/EIF4E2/GNB3/PPP2R2B/EIF4E/PTK2/IFNAR2/PHLPP1/PFKFB3/GRB2/CDKN1A/LPAR2/AKT2/OSM/ITGAE/ITGB6/IL3RA/HSP90AA1/EPO/GYS1/ITGAL/NOS1/PPP2R3C/PELO/PIK3R5/RHEB/FGF17/PIK3CB/PIK3CG/FLT1/ITGAX/PPP2R3A/COL4A2/TBC1D1/VTN/CSH1/PIK3CD/ITGA4/IKBKG/PRL/CSHL1/RAB2A/PPP2R5E/GNB2/JAK3/MDM2/COL4A1/EFNA4/ATF6B/RAB8A/MTOR/ITGA9/MLST8/HRAS/RPS6/PDGFB/PPP2R5B/CSF3/ITGB4/KRAS/PFKFB1/GNG13/PPP2R5D/CSF3R/NOS2/GNB1/RPS6KB1/CREB3L2/PPP2R1A/PPP2R5C/PPP2CB/GNG3/PPARGC1A/PPP2R2D/INS/ITGA6/CSF1/LAMC2/LAMA1/PHLPP2/ANGPT1/EPHA2/PIK3R2/PIK3CA/FGF20/AKT1/JAK2/PPP2R1B/CREB3/ATF2/ITGA5/MET/RAF1/ITGB1/RAB14/PDGFRA/LAMA5/FGF16/EFNA5/CSF1R/IRS4/FGF4/RAB11B/PPP2R5A/PDGFA/BAD/SLC2A2/LAMB3/FGF3/IL4R/PTEN/IFNA7/ANGPT2/LAMC3/PPP2CA/KIT/ITGB3/HIF3A/AKT3/FN1/GYS2/ITGA2/CREB1/FLT4/PDPK1/CASP9/FGF13/PIK3R4/NOS3/STRADA/TNXB/FGFR1/TCL1B/JAK1/ACACA/ULK1/TSC2/SLC2A4/RELN/FOXO3/IFNAR1/ITGA10/IFNB1/OSMR/PIK3C2B/ITGA8/VEGFB/FGFR2/PIK3C2A/GNG7/THBS1/PRKAA1/LAMC1/PIK3IP1/CDC37/MAPK3/PGF/VEGFC/FGF7/THBS3/CAB39/IRS2/PRKAA2/PIK3R1/STK11/COL4A6/TEK/LAMA4/TNC/HGF/KDR/COL11A1/CDKN1B/CREB3L1/INSR/CHRM2/EIF4B/VWF/ITGAV/EPAS1/EFNA1/F2R/COL2A1/NGFR/ITGA3/FGFR3/TSC1/FGF1/NGF/FGF14/LAMB1/LPAR1/FOXO1/COL1A2/COL1A1/CAB39L/LPAR4/EPOR/FGF2/COL3A1/COL5A3/COL5A2/GNG12/PRLR/THBS2/LPAR6/PDGFC/ITGB5/KITLG/SREBF1/IGF1R/PDGFRB/LIPE/COL5A1/COL6A2/LAMA2/GHR/LAMA3/FGF18/IKBKB/GNG11/TNN/LAMB2/IRS1/ITGA7/THBS4/IGF1/PDGFD/COMP/CHAD/FOXA1
+## WP3915                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     EIF4EBP1/SCD/MAP4K2/MAP4K1/CBL/SLC2A1/MAPK13/MAP2K1/MAP2K2/RPS6KB2/MAPK1/SOS1/GSK3B/MAPK12/MAPK6/MAP2K3/ABCG5/MAPK14/EIF4E/MAP3K8/SREBF2/RPS6KA4/RPS6KA3/AKT2/GYS1/NR1H3/MAPKAP1/RHEB/PIK3CB/PIK3CG/MAPK4/THRA/CAP1/FASN/RPS6KA1/PTPN1/MAPK10/PIK3CD/MAP3K10/RXRA/MLXIPL/ANGPTL8/MAP3K11/MAP3K7/SHC3/MAP2K6/MTOR/MLST8/HRAS/G6PC/MAPK8/RAPGEF1/RPS6KB1/CBLB/MAP3K13/INS/PIK3R3/CYP2B6/THRB/MAP3K5/MAP3K14/PIK3R2/PIK3CA/MAP3K2/AKT1/PRKAG1/FLOT2/RAF1/RHOQ/MAP2K7/MAPK11/MINK1/GSK3A/IRS4/PRKAB2/PIK3C3/MAPK7/SLCO1C1/MAP3K9/PIK3C2G/MAP4K5/CRK/SOS2/RPS6KA6/MAP4K4/TRIP10/PDPK1/PIK3R4/CBLC/MAP3K3/MAPK9/MAP2K5/TSC2/SHC1/SLC2A4/DIO2/FOXO3/CYP3A4/MAP3K6/PRKAG2/MAP4K3/SLC16A2/PIK3C2A/PRKAA1/EXOC7/MAPK3/MAP2K4/FLOT1/IRS2/PRKAA2/PIK3R1/PRKAB1/INSR/RPS6KA5/MAP3K4/TSC1/RPS6KA2/FOXO1/CYP7A1/LPL/MAP3K1/SHC2/SREBF1/FBP1/MAP3K12/IRS1/PCK1
+## WP4172 ITGB7/EIF4EBP1/CCNE1/ANGPT4/CCNE2/IL2RA/MYC/COL9A3/IL2RG/PPP2R3B/DDIT4/IL7/IL7R/LAMB4/FGF8/IBSP/CDK4/ITGB8/SPP1/FGF6/EFNA3/GNGT1/FGF9/EFNA2/PCK2/VEGFA/CD19/TNR/TCL1A/IFNA21/ATF4/SYK/MAP2K1/IL6/TLR2/FGF22/TGFA/EGFR/COL9A1/LPAR3/GNG5/BRCA1/FASLG/MAP2K2/EGF/RPS6KB2/MAPK1/SOS1/BCL2L11/COL4A4/ITGA2B/FGF12/FGFR4/PRKCA/NRAS/IL6R/SGK1/FGF21/GNG4/CHUK/IL2/GSK3B/IL2RB/HSP90B1/HSP90AB1/EIF4E2/GNB3/NTRK1/PPP2R2B/EIF4E/PTK2/IFNAR2/PHLPP1/GH1/GRB2/CDK2/IFNA1/CDKN1A/LPAR2/AKT2/OSM/ITGB6/IL3RA/HSP90AA1/RELA/EPO/GYS1/PPP2R3C/PIK3R5/RHEB/FGF17/PIK3CB/PIK3CG/CCND3/CCND2/FLT1/IL3/PPP2R3A/COL4A2/IFNA6/VTN/CSH1/PIK3CD/ITGA4/IKBKG/TLR4/PRL/CSHL1/IFNA17/PPP2R5E/GNB2/JAK3/MDM2/COL4A1/EFNA4/IL4/ATF6B/MTOR/ITGA9/MLST8/FGF5/MCL1/HRAS/RPS6/PDGFB/PPP2R5B/CSF3/ITGB4/G6PC/SGK2/KRAS/GNG13/PPP2R5D/CSF3R/GNB1/RPS6KB1/CREB3L2/RAC1/PPP2R1A/PPP2R5C/PPP2CB/GNG3/PPP2R2D/INS/PIK3R3/IFNA5/ITGA6/CSF1/LAMC2/IFNA8/LAMA1/PHLPP2/ANGPT1/EPHA2/PIK3R2/PIK3CA/FGF20/AKT1/JAK2/PPP2R1B/CREB3/ATF2/ITGA5/MET/IFNA10/RAF1/ITGB1/PDGFRA/IFNA14/COL4A3/PKN1/LAMA5/EFNA5/CSF1R/NFKB1/PKN2/FGF23/CSH2/GH2/FGF4/PPP2R5A/PDGFA/CDK6/BAD/PPP2R2A/FLT3LG/LAMB3/FGF3/IL4R/PTEN/IFNA7/ANGPT2/LAMC3/RBL2/SOS2/PPP2CA/KIT/ITGB3/AKT3/FN1/GYS2/ITGA2/CREB1/FLT4/PDPK1/IFNA16/CASP9/FGF13/NOS3/IFNA2/TNXB/FGFR1/G6PC2/TCL1B/JAK1/TSC2/RELN/FOXO3/IFNAR1/BCL2L1/ITGA10/IFNB1/OSMR/ITGA8/VEGFB/FGFR2/ITGA1/GNG7/THBS1/PRKAA1/COL9A2/LAMC1/GNB5/CDC37/MAPK3/PGF/VEGFC/TP53/BDNF/FGF7/THBS3/G6PC3/PRKAA2/PIK3R1/STK11/COL4A6/TEK/LAMA4/TNC/HGF/COL6A1/MYB/KDR/CDKN1B/CREB3L1/IFNA4/INSR/CHRM2/FLT3/EIF4B/VWF/BCL2/ITGAV/EFNA1/F2R/COL2A1/NGFR/ITGA3/CCND1/FGFR3/TSC1/FGF1/NGF/FGF14/LAMB1/LPAR1/COL1A2/COL1A1/LPAR4/EPOR/COL6A3/FGF2/GNG12/PRLR/THBS2/LPAR6/PDGFC/ITGB5/KITLG/IGF1R/NTF3/PDGFRB/COL6A2/LAMA2/GHR/LAMA3/FGF18/NTRK2/IKBKB/GNG11/TNN/LAMB2/IRS1/COL4A5/ITGA7/THBS4/IGF1/PDGFD/COMP/PCK1/CHAD
+##        Count
+## WP481    155
+## WP3888   221
+## WP2380   138
+## WP3932   281
+## WP3915   127
+## WP4172   311</code></pre>
+<pre class="r"><code>#another wikipathways, this one has the PI3k/Akt/mTor pathway in it!
+ewp2 &lt;- GSEA(geneList, TERM2GENE = wpid2gene, TERM2NAME = wpid2name, verbose=FALSE)
+ewp2 &lt;- setReadable(ewp2, org.Hs.eg.db, keyType = &quot;ENTREZID&quot;)
+head(ewp2)</code></pre>
+<pre><code>##            ID
+## WP3932 WP3932
+## WP306   WP306
+## WP3967 WP3967
+## WP4210 WP4210
+## WP404   WP404
+## WP4240 WP4240
+##                                                                           Description
+## WP3932                                 Focal Adhesion-PI3K-Akt-mTOR-signaling pathway
+## WP306                                                                  Focal Adhesion
+## WP3967                                         miR-509-3p alteration of YAP1/ECM axis
+## WP4210                               Tryptophan catabolism leading to NAD+ production
+## WP404                                                           Nucleotide Metabolism
+## WP4240 Regulation of sister chromatid separation at the metaphase-anaphase transition
+##        setSize enrichmentScore       NES      pvalue   p.adjust    qvalues
+## WP3932     281      -0.3903410 -1.663323 0.001298701 0.03917749 0.03292322
+## WP306      188      -0.4230017 -1.736832 0.001371742 0.03917749 0.03292322
+## WP3967      14      -0.7302346 -1.832473 0.001689189 0.03917749 0.03292322
+## WP4210      11       0.7658603  1.889473 0.002309469 0.03917749 0.03292322
+## WP404       17       0.6978748  1.946253 0.002358491 0.03917749 0.03292322
+## WP4240      14       0.8420478  2.214909 0.002439024 0.03917749 0.03292322
+##        rank                   leading_edge
+## WP3932 1994 tags=26%, list=16%, signal=22%
+## WP306  2221 tags=28%, list=18%, signal=23%
+## WP3967  929  tags=50%, list=7%, signal=46%
+## WP4210  679  tags=45%, list=5%, signal=43%
+## WP404  2428 tags=59%, list=19%, signal=47%
+## WP4240  360  tags=50%, list=3%, signal=49%
+##                                                                                                                                                                                                                                                                                                                                                                                                                            core_enrichment
+## WP3932 THBS3/CAB39/IRS2/PRKAA2/PIK3R1/STK11/COL4A6/TEK/LAMA4/TNC/HGF/KDR/COL11A1/CDKN1B/CREB3L1/INSR/CHRM2/EIF4B/VWF/ITGAV/EPAS1/EFNA1/F2R/COL2A1/NGFR/ITGA3/FGFR3/TSC1/FGF1/NGF/FGF14/LAMB1/LPAR1/FOXO1/COL1A2/COL1A1/CAB39L/LPAR4/EPOR/FGF2/COL3A1/COL5A3/COL5A2/GNG12/PRLR/THBS2/LPAR6/PDGFC/ITGB5/KITLG/SREBF1/IGF1R/PDGFRB/LIPE/COL5A1/COL6A2/LAMA2/GHR/LAMA3/FGF18/IKBKB/GNG11/TNN/LAMB2/IRS1/ITGA7/THBS4/IGF1/PDGFD/COMP/CHAD/FOXA1
+## WP306                                                                                                                               MAPK3/PGF/VEGFC/CTNNB1/MYL5/TLN2/THBS3/PIK3R1/COL4A6/PIP5K1C/LAMA4/TNC/HGF/ARHGAP5/KDR/VWF/BCL2/ITGAV/COL2A1/ITGA3/CCND1/FLNC/LAMB1/DOCK1/COL1A2/PTK6/COL1A1/MYL9/PARVA/COL5A3/COL5A2/FLNB/THBS2/SHC2/PDGFC/ITGB5/IGF1R/PDGFRB/CAV1/COL6A2/LAMA2/LAMA3/TNN/LAMB2/ITGA7/THBS4/IGF1/VAV3/PDGFD/COMP/CHAD
+## WP3967                                                                                                                                                                                                                                                                                                                                                                                               SNAI2/COL3A1/THBS2/COL5A1/EDNRA/SPARC
+## WP4210                                                                                                                                                                                                                                                                                                                                                                                                             QPRT/IDO1/TDO2/KMO/KYNU
+## WP404                                                                                                                                                                                                                                                                                                                                                                                RRM2/MTHFD2/DHFR/POLD1/HPRT1/ADSL/SRM/RRM1/SAT1/PRPS2
+## WP4240                                                                                                                                                                                                                                                                                                                                                                                           CDC20/CENPE/MAD2L1/PTTG1/BUB1B/ESPL1/BUB1</code></pre>
+</div>
+<div id="finally-try-some-visualizations-from-clusterprofiler" class="section level4">
+<h4>finally, try some visualizations from ClusterProfiler…</h4>
+<pre class="r"><code>barplot(ggo, drop=TRUE, showCategory=12)</code></pre>
+<p><img src="exploring_clusterprofiler_files/figure-html/unnamed-chunk-25-1.png" width="672" /></p>
+<pre class="r"><code>#gseaplot(mkk2, geneSetID = &quot;hsa04145&quot;)</code></pre>
+<ul>
+<li>unreleated enrichment resource, talking about evolutionary stuff: <a href="https://cran.r-project.org/web/packages/myTAI/vignettes/Expression.html" class="uri">https://cran.r-project.org/web/packages/myTAI/vignettes/Expression.html</a></li>
+<li><a href="https://cran.r-project.org/web/packages/myTAI/vignettes/Enrichment.html" class="uri">https://cran.r-project.org/web/packages/myTAI/vignettes/Enrichment.html</a></li>
+</ul>
+</div>
+</div>
 
 
 
