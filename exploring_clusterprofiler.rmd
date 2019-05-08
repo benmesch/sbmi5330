@@ -1,13 +1,12 @@
 ---
 title: "Exploring ClusterProfiler"
 author: "Ben Mescher"
-date: '`r Sys.Date()`'
-output: html_notebook
 ---
-Ben Mescher
+Final, formal, paper write up is saved here: https://docs.google.com/document/d/1sDRhekkbcrHK-mQRN2IN-v70ZD0oT5KMHAc2F7OPLVA/edit?usp=sharing
 
-Later:
-List the top 250 most significantly differentially expressed genes. GAK is p53 downstream! One of the biological processes for GAK is listed as Cell Cycle. I wonder. CluterProfiler has a great overview of this 'gene set enrichment analysis', labeling with GO or KEGG and identyifying predominant biological themes.
+This notebook contains miscellaneous explorations looking at the example GEO dataset used by Clusterprofiler (the data is actually from a different biocondoctor package: breastCancerMAINZ).
+
+CluterProfiler has a great overview of this 'gene set enrichment analysis', labeling with GO or KEGG and identyifying predominant biological themes.
 
 Manually choosing interesting clusters, and then perform "enrichment analysis" (annotate with function terms) is cumbersome. CluterProfiler compares and visualizes functional profiles among gene clusters.
 

@@ -3,6 +3,8 @@ title: "Analysis of CML Microarray Data"
 author: "Ben Mescher"
 ---
 
+Final, formal, paper write up is saved here: https://docs.google.com/document/d/1sDRhekkbcrHK-mQRN2IN-v70ZD0oT5KMHAc2F7OPLVA/edit?usp=sharing
+
 Preliminary goals:
 Familiarize with the GEOquery and BioConductor data structure for microarray expression data. 
 Explore significantly differing genes using limma contrasts, then plot expression profiles for the top genes.
@@ -313,7 +315,7 @@ ggo <- groupGO(gene     = gene,
                readable = TRUE)
 #order by count
 ggo@result = ggo@result[order(ggo@result[,"Count"],decreasing=TRUE),]
-ggo@result
+ggo@result[1:12,1:4]
 ```
 
 ```{r}
@@ -330,7 +332,7 @@ ggo <- groupGO(gene     = gene,
                readable = TRUE)
 #order by count
 ggo@result = ggo@result[order(ggo@result[,"Count"],decreasing=TRUE),]
-ggo@result
+ggo@result[1:12,2:4]
 ```
 
 ```{r}
@@ -348,13 +350,12 @@ ggo <- groupGO(gene     = gene,
 
 #order by count
 ggo@result = ggo@result[order(ggo@result[,"Count"],decreasing=TRUE),]
-ggo@result
+ggo@result[1:12,2:4]
 ```
 
 ```{r}
 barplot(ggo,showCategory=12)
 ```
-
 
 #### KEGG Enrichment analysis, chronic phase vs healthy control
 * Default p value cutoff (5%)
@@ -369,7 +370,7 @@ kk2 <- gseKEGG(geneList     = test,
                pvalueCutoff = 0.05,
                verbose      = FALSE)
 kk2@result = kk2@result[order(kk2@result[,"setSize"],decreasing=TRUE),]
-kk2@result
+kk2@result[1:12,2:7]
 ```
 
 ```{r}
@@ -383,7 +384,7 @@ kk3 <- enrichKEGG(gene    = names(test),
                organism     = 'hsa',
                pvalueCutoff = 0.05
   )
-kk3@result[,c("Description","GeneRatio","p.adjust","Count")]
+kk3@result[1:12,c("Description","GeneRatio","p.adjust","Count")]
 ```
 
 
@@ -406,7 +407,7 @@ wpid2name <- wp2gene %>% dplyr::select(wpid, name) #TERM2NAME
 ewp <- enricher(gene, TERM2GENE = wpid2gene, TERM2NAME = wpid2name)
 ewp <- setReadable(ewp, org.Hs.eg.db, keyType = "ENTREZID")
 ewp@result = ewp@result[order(ewp@result[,"Count"],decreasing=TRUE),]
-ewp@result
+ewp@result[1:12,2:6]
 ```
 
 ```{r}
@@ -487,8 +488,6 @@ legend("topleft", labels, fill=palette(), bty="n")
 
 
 ### Step 2: Repeat the analysis for the other study
-
-
 
 ```{r}
 # Version info: R 3.2.3, Biobase 2.30.0, GEOquery 2.40.0, limma 3.26.8
@@ -598,6 +597,3 @@ are the ranges and distributions the same for both datasets, roughly? Do the 2 p
 
 NExt, are the "top 250" genes identified by the GEO2R default comparison... how similar is the "top 250" lists for the 2 studies? 
 *This will lead naturally into a categorization of the genes in the 3 main pathways of interest. May also want to see highly expressed genes vs. normal patient levels (which should... highlight more genes that are members of the 3 pathways, id think)
-
-
-http://nickstrayer.me/RMarkdown_Sites_tutorial/
