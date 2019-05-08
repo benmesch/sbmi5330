@@ -1,6 +1,14 @@
 ---
 title: "Exploring ClusterProfiler"
 author: "Ben Mescher"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+  html_notebook:
+    toc: yes
+    toc_collapse: no
+    toc_float: yes
 ---
 author: "Ben Mescher"
 
@@ -288,4 +296,5 @@ barplot(ggo, drop=TRUE, showCategory=12)
 
 
 * unreleated enrichment resource, talking about evolutionary stuff: https://cran.r-project.org/web/packages/myTAI/vignettes/Expression.html
+* notebook resource, Git + RMD https://github.com/rstudio/rmarkdown/issues/1020 
 * https://cran.r-project.org/web/packages/myTAI/vignettes/Enrichment.html
